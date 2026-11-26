@@ -13,7 +13,7 @@ button,input,select{font:inherit;color:inherit}
 .tag{font-size:11px;font-weight:600;background:#e5dfd3;color:#4b5563;border-radius:99px;padding:2px 9px;margin-left:4px}
 .sub{color:#4b5563;font-size:14px;margin:6px 0 14px}
 .jcard label.l{display:block;font-size:12px;color:#4b5563;margin:12px 0 5px}
-.jcard input[type=text],.jcard input:not([type]),.jcard select,#join input#name,#join input#room{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #d6cfc2;background:#ffffff}
+.jcard input[type=text],.jcard input:not([type]),.jcard select,#join input#name,#join input#room,#join input#pw{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #d6cfc2;background:#ffffff}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .btn{border:0;border-radius:12px;padding:12px 14px;font-weight:600;cursor:pointer;background:#d6cfc2}
 .btn.pri{background:linear-gradient(135deg,#2563eb,#4f46e5);width:100%;margin-top:14px;padding:14px}
@@ -41,6 +41,9 @@ button,input,select{font:inherit;color:inherit}
 .mic{position:absolute;left:10px;top:10px;background:#e11d48;border-radius:99px;padding:2px 8px;font-size:11px;font-weight:600}
 .mic.off{background:rgba(255,255,255,.92);color:#1f2937;box-shadow:0 1px 3px #0002;color:#4b5563}
 .side{border-left:1px solid #ebe5da;display:flex;flex-direction:column;min-height:0;background:#ffffff}
+.lis{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;margin:4px 0 0 8px;padding:0;border:1px solid #d6cfbf;border-radius:50%;background:transparent;color:#374151;cursor:pointer;float:right}.lis svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.lis:hover,.lis.on{background:#dbeafe;color:#1d4ed8}.m::after{content:'';display:block;clear:both}body.dark .lis{border-color:#3a4050;color:#d7ddea}body.dark .lis:hover,body.dark .lis.on{background:#1e3a5f;color:#93c5fd}
+.seg{display:flex;gap:4px;padding:4px;background:#efe9dc;border-radius:12px;margin:14px 0 4px}.seg button{flex:1;min-height:44px;border:0;border-radius:9px;background:transparent;color:#374151;font:inherit;font-weight:600;cursor:pointer}.seg button.on{background:#fff;color:#111827;box-shadow:0 1px 3px #0002}
+#jerr{color:#be123c;font-size:14px;margin-top:8px;min-height:0}#jerr:empty{display:none}body.dark .seg{background:#22262f}body.dark .seg button{color:#c4cad8}body.dark .seg button.on{background:#383f4e;color:#fff}body.dark #jerr{color:#fda4af}
 .side h3{margin:0;padding:12px 16px;font-size:14px;border-bottom:1px solid #ebe5da;color:#1f2937}
 #log{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
 .m{background:#ffffff;border-radius:12px;padding:9px 12px;border:1px solid #e5dfd3}.me{border-color:#16a34a66}
@@ -134,10 +137,14 @@ body.dark .rl{color:#9aa4b8}body.dark .code{background:#16181d;border-color:#3a4
   <label class="l" for="name">Your name</label><input type="text" maxlength="48" id="name" placeholder="Name">
   <div class="two"><div><label class="l" for="speak">I speak</label><select id="speak"></select></div>
   <div><label class="l" for="hear">I want to hear / read</label><select id="hear"></select></div></div>
-  <label class="l" for="room">Room code</label><input type="text" id="room" placeholder="16+ character room secret" maxlength="64">
-  <button id="newRoom" class="btn sec" type="button">Generate a random room secret</button>
+  <div class="seg" role="tablist"><button id="tabCreate" class="on" type="button" role="tab" aria-selected="true">Create room</button><button id="tabJoin" type="button" role="tab" aria-selected="false">Join room</button></div>
+  <label class="l" for="room">Room code</label><input type="text" id="room" placeholder="16+ character room secret" maxlength="64" autocomplete="off">
+  <button id="newRoom" class="btn sec" type="button">Generate a new room code</button>
+  <label class="l" for="pw" id="pwl">Room password (optional)</label><input type="password" id="pw" maxlength="64" autocomplete="new-password" placeholder="Leave empty for an open room">
+  <div class="hint" id="pwh">Guests need the room code and this password. The password is separate from the code and is never sent in clear text.</div>
+  <div id="jerr" role="alert"></div>
   <label class="consent"><input id="privacy" type="checkbox"><span>I understand: other room participants receive my text; browser speech recognition may send audio to its provider; text needing translation is sent to MyMemory. Do not use confidential meetings.</span></label>
-  <button id="go" class="btn pri" type="button">Join / create room</button>
+  <button id="go" class="btn pri" type="button">Create room</button>
   <div class="hint">Share the room code with others so they can join the same room. Use Chrome or Edge (speech recognition needs it). Allow the microphone. Use headphones to avoid echo.</div>
  </div>
 </div>
@@ -177,7 +184,7 @@ const languages=new Set(['en','ar','es','fr','de','it','pt','ru','tr','hi','zh',
 const cleanString=(v,max)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
 function person(p){return !!p&&cleanString(p.id,128)&&cleanString(p.name,48)&&languages.has(p.speak)&&languages.has(p.hear);}
 function message(m){return !!m&&m.t==='chat'&&cleanString(m.mid,160)&&cleanString(m.id,128)&&cleanString(m.name,48)&&cleanString(m.text,1000)&&languages.has(m.lang);}
-function canonicalChat(m,p){if(!message(m)||!person(p))return null;return {t:'chat',mid:m.mid,id:p.id,name:p.name,lang:p.speak,text:m.text};}
+function canonicalChat(m,p){if(!message(m)||!person(p))return null;return {t:'chat',mid:m.mid,id:p.id,name:p.name,lang:p.speak,text:m.text,k:m.k==='speech'?'speech':'typed'};}
 function canonicalPerson(m,peerId){if(!m||!cleanString(peerId,128))return null;const p={id:peerId,name:m.name,speak:m.speak,hear:m.hear};return person(p)?p:null;}
 function roomCode(v){return typeof v==='string'&&/^[a-z0-9]{16,64}$/.test(v);}
 const api={person,message,canonicalChat,canonicalPerson,roomCode};
@@ -191,8 +198,8 @@ for(const s of ['speak','hear','speak2','hear2'])for(const l of LANGS)$(s).add(n
 $('speak').value='ar';$('hear').value='en';
 const bcp=c=>LANGS.find(l=>l[0]==c)[2];
 let session=0;const seen=new Set();let incoming=Promise.resolve();let lastSend=0;let translationChars=0;const activeRequests=new Set();
-let peer,conns=new Map(),isHost=false,me={},rec,recOn=false,muted=false,deaf=false,room,people=new Map();
-const log=(h,mine)=>{if(!mine){const c=$('cap');c.innerHTML=h;clearTimeout(window.__capT);window.__capT=setTimeout(()=>{c.innerHTML=''},9000);window.__chatNote&&window.__chatNote()}const em=$('empty');if(em)em.remove();const d=document.createElement('div');d.className='m'+(mine?' me':'');d.innerHTML=h;$('log').appendChild(d);$('log').scrollTop=1e9};
+let pwKey=null,guestPw=null,guestAuthed=true,authFails=[],mode='create';let peer,conns=new Map(),isHost=false,me={},rec,recOn=false,muted=false,deaf=false,room,people=new Map();
+const log=(h,mine,lis)=>{if(!mine){const c=$('cap');c.innerHTML=h;clearTimeout(window.__capT);window.__capT=setTimeout(()=>{c.innerHTML=''},9000);window.__chatNote&&window.__chatNote()}const em=$('empty');if(em)em.remove();const d=document.createElement('div');d.className='m'+(mine?' me':'');d.innerHTML=h;if(lis){const b=document.createElement('button');b.type='button';b.className='lis';b.title='Listen to this message';b.setAttribute('aria-label','Listen to this message');b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';b.onclick=()=>listen(lis.text,lis.lang,b);d.appendChild(b)}$('log').appendChild(d);$('log').scrollTop=1e9};
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const status=t=>$('status').textContent=t||'';
 const speaking=new Map();const COLORS=['#2563eb','#7c3aed','#db2777','#c2410c','#047857','#0e7490','#e11d48','#4d7c0f'];
@@ -226,23 +233,61 @@ function updateVoiceNote(){const el=$('vnote');if(!el)return;let t='';
  if(!window.speechSynthesis)t='This browser cannot speak translations. You will get text only.';
  else if(speechSynthesis.getVoices().length&&me.hear&&!voiceFor(me.hear))t='No '+langName(me.hear)+' voice on this device, so translations to '+langName(me.hear)+' are shown as text only (not spoken).';
  el.textContent=t}
+function listen(t,lang,btn){
+ if(deaf){status('Deafened: nothing is read aloud. Undeafen to listen.');return}
+ if(muted){status('Playback is muted. Unmute playback to listen.');return}
+ if(!window.speechSynthesis){status('This browser cannot speak messages.');return}
+ const v=voiceFor(lang);if(!v){status('No '+langName(lang)+' voice on this device, so this message cannot be read aloud.');return}
+ speechSynthesis.cancel();document.querySelectorAll('.lis.on').forEach(x=>x.classList.remove('on'));
+ const u=new SpeechSynthesisUtterance(t);u.lang=v.lang;u.voice=v;btn.classList.add('on');
+ const off=()=>btn.classList.remove('on');u.onend=off;u.onerror=off;speechSynthesis.speak(u);status('')}
 function speakOut(t,lang){if(deaf||muted||!window.speechSynthesis)return;const v=voiceFor(lang);if(!v){updateVoiceNote();return}
   const u=new SpeechSynthesisUtterance(t);u.lang=v.lang;u.voice=v;speechSynthesis.speak(u)}
 async function onMsg(m){
   if(m.t=='chat'){
     const mine=m.id==me.id;const epoch=session;let out=m.text;flash(m.id);
     if(!mine){const tr=await translate(m.text,m.lang,me.hear);if(epoch!==session)return;out=tr==null?m.text:tr;
-      log(`<small>${esc(m.name)} (${m.lang})</small><div dir="auto">${esc(out)}</div>${tr!=null&&m.lang!=me.hear?`<div class="o" dir="auto">${esc(m.text)}</div>`:''}${tr==null?'<div class="o">(translation unavailable, original shown)</div>':''}`);
-      speakOut(out,tr==null?m.lang:me.hear)}
+      log(`<small>${esc(m.name)} (${m.lang})</small><div dir="auto">${esc(out)}</div>${tr!=null&&m.lang!=me.hear?`<div class="o" dir="auto">${esc(m.text)}</div>`:''}${tr==null?'<div class="o">(translation unavailable, original shown)</div>':''}`,false,m.k==='speech'?null:{text:out,lang:tr==null?m.lang:me.hear});
+      if(m.k==='speech')speakOut(out,tr==null?m.lang:me.hear)}
     else log(`<small>You</small><div dir="auto">${esc(m.text)}</div>`);
   }
 }
-function broadcastLocal(m,from){ // host relays to all except origin
-  for(const [id,c] of conns)if(id!=from&&c.open)c.send(m)}
+function broadcastLocal(m,from){ // host relays to all except origin (only admitted guests in protected rooms)
+  for(const [id,c] of conns)if(id!=from&&c.open&&(!pwKey||c._auth))c.send(m)}
+const hex=b=>Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');
+const rnd=()=>{const b=new Uint8Array(16);crypto.getRandomValues(b);return hex(b)};
+async function deriveKey(pw,rc){const enc=new TextEncoder();const base=await crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveBits']);
+ const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:enc.encode('linguameet:'+rc),iterations:150000},base,256);
+ return crypto.subtle.importKey('raw',bits,{name:'HMAC',hash:'SHA-256'},false,['sign'])}
+async function mac(key,txt){return hex(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(txt)))}
+function same(a,b){if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a.charCodeAt(i)^b.charCodeAt(i);return d===0}
+const hx=v=>typeof v==='string'&&/^[0-9a-f]{32}$/.test(v);
+function locked(){const now=Date.now();authFails=authFails.filter(t=>now-t<60000);return authFails.length>=5}
+async function hostAuth1(c,m){
+ if(!hx(m.cn)||locked()){c.send({t:'authfail',why:'locked'});setTimeout(()=>c.close(),300);return}
+ c._cn=m.cn;c._sn=rnd();c.send({t:'auth2',sn:c._sn,hp:await mac(pwKey,'host|'+c._cn+'|'+c._sn)})}
+async function hostAuth3(c,m){
+ if(!c._sn||c._auth)return;const sn=c._sn;c._sn=null;
+ if(locked()||!same(m.gp,await mac(pwKey,'guest|'+sn+'|'+c._cn))){authFails.push(Date.now());c.send({t:'authfail',why:'wrong'});setTimeout(()=>c.close(),300);return}
+ c._auth=true;clearTimeout(c._authT);c.send({t:'authok'});c.send({t:'hello',...me})}
+function backToJoin(msg){session++;try{stopRec()}catch(e){}if(window.speechSynthesis)speechSynthesis.cancel();
+ if(peer){try{peer.destroy()}catch(e){}peer=null}conns.clear();people=new Map();isHost=false;pwKey=null;guestPw=null;guestAuthed=true;
+ $('meet').classList.add('hide');$('join').classList.remove('hide');$('jerr').textContent=msg||'';if(msg&&/password/i.test(msg))$('pw').focus()}
+async function guestAuth(c,m){
+ if(m.t==='needpw'){backToJoin('This room needs a password. Enter it below and join again.');return}
+ if(m.t==='authfail'){backToJoin(m.why==='locked'?'Too many wrong attempts. Wait a minute and try again.':'Wrong password.');return}
+ if(m.t==='nopw'){backToJoin('This room has no password, but you entered one. Clear the password field or check the room code.');return}
+ if(m.t==='auth2'&&c._cn&&hx(m.sn)&&typeof m.hp==='string'){
+  if(!same(m.hp,await mac(guestPw,'host|'+c._cn+'|'+m.sn))){backToJoin('Wrong password, or this is not the room you meant. Check the code and the password.');return}
+  c.send({t:'auth3',gp:await mac(guestPw,'guest|'+m.sn+'|'+c._cn)});return}
+ if(m.t==='authok'){guestAuthed=true;status('Connected and password verified. Names are not verified identities.');c.send({t:'hello',...me})}}
 function queueChat(m){if(!MeetProtocol.message(m)||seen.has(m.mid))return;seen.add(m.mid);if(seen.size>500)seen.delete(seen.values().next().value);incoming=incoming.then(()=>onMsg(m)).catch(()=>status('Message could not be processed'));}
 function handleData(c,m){
  if(!m||typeof m!=='object')return;
  if(isHost){
+  if(m.t==='auth1'){if(pwKey)hostAuth1(c,m);else c.send({t:'nopw'});return}
+  if(m.t==='auth3'){if(pwKey)hostAuth3(c,m);return}
+  if(pwKey&&!c._auth){if(m.t==='hello'){c.send({t:'needpw'});setTimeout(()=>c.close(),300)}return}
   if(m.t==='hello'||m.t==='update'){
    const p=MeetProtocol.canonicalPerson(m,c.peer);if(!p)return;c._person=p;people.set(p.id,p);renderPeers();broadcastLocal({t:'people',list:[...people.values()]});return;
   }
@@ -251,6 +296,8 @@ function handleData(c,m){
    const clean=MeetProtocol.canonicalChat(m,c._person);if(clean){queueChat(clean);broadcastLocal(clean,c.peer);}return;
   }
  }else{
+  if(['auth2','authok','authfail','needpw','nopw'].includes(m.t)){guestAuth(c,m);return}
+  if(!guestAuthed)return;
   if(m.t==='people'&&Array.isArray(m.list)&&m.list.length<=8&&m.list.every(MeetProtocol.person)){people=new Map(m.list.map(p=>[p.id,p]));renderPeers();}
   else if(m.t==='chat')queueChat(m);
  }
@@ -258,40 +305,58 @@ function handleData(c,m){
 function wire(c){
  if(isHost&&conns.size>=7){c.close();return;}conns.set(c.peer,c);
  c.on('data',m=>handleData(c,m));
- c.on('open',()=>c.send({t:'hello',...me}));
+ c.on('open',()=>{
+  if(isHost){if(pwKey){c._authT=setTimeout(()=>{if(!c._auth)c.close()},15000)}else c.send({t:'hello',...me})}
+  else if(guestPw){c._cn=rnd();c.send({t:'auth1',cn:c._cn})}
+  else c.send({t:'hello',...me})});
  c.on('error',()=>status('Peer connection failed'));
- c.on('close',()=>{conns.delete(c.peer);if(c._person){people.delete(c._person.id);renderPeers();if(isHost)broadcastLocal({t:'people',list:[...people.values()]});}if(!isHost){stopRec();status('Host left, room ended');}});
+ c.on('close',()=>{conns.delete(c.peer);if(c._person){people.delete(c._person.id);renderPeers();if(isHost)broadcastLocal({t:'people',list:[...people.values()]});}if(!isHost&&guestAuthed){stopRec();status('Host left, room ended');}});
 }
 function send(m){if(isHost)broadcastLocal(m);else conns.forEach(c=>c.open&&c.send(m));}
-function say(text){text=text.trim();if(!text||text.length>1000||Date.now()-lastSend<800)return;lastSend=Date.now();const m={t:'chat',mid:crypto.randomUUID(),id:me.id,name:me.name,lang:me.speak,text};queueChat(m);send(m);}
+function say(text,kind){text=text.trim();if(!text||text.length>1000||Date.now()-lastSend<800)return;lastSend=Date.now();const m={t:'chat',mid:crypto.randomUUID(),id:me.id,name:me.name,lang:me.speak,text,k:kind==='speech'?'speech':'typed'};queueChat(m);send(m);}
 $('newRoom').onclick=()=>{const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);$('room').value=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');};
-$('go').onclick=()=>{
- const name=$('name').value.trim()||'Guest',rc=$('room').value.trim().toLowerCase();
+function setMode(m){mode=m;$('tabCreate').classList.toggle('on',m==='create');$('tabJoin').classList.toggle('on',m==='join');
+ $('tabCreate').setAttribute('aria-selected',m==='create');$('tabJoin').setAttribute('aria-selected',m==='join');
+ $('go').textContent=m==='create'?'Create room':'Join room';$('newRoom').style.display=m==='create'?'':'none';
+ $('pwl').textContent=m==='create'?'Room password (optional)':'Room password (only if the host set one)';
+ $('pw').placeholder=m==='create'?'Leave empty for an open room':'Leave empty if the room is open';
+ $('pwh').style.display=m==='create'?'':'none';$('jerr').textContent='';
+ if(m==='create'&&!$('room').value)$('newRoom').click();if(m==='join')$('room').value=''}
+$('tabCreate').onclick=()=>setMode('create');$('tabJoin').onclick=()=>setMode('join');
+setMode('create');
+$('go').onclick=async()=>{
+ const name=$('name').value.trim()||'Guest',rc=$('room').value.trim().toLowerCase(),pw=$('pw').value;$('jerr').textContent='';
  if(!$('privacy').checked){alert('Read and accept the data notice before connecting.');return;}
- if(!MeetProtocol.roomCode(rc)){alert('Use Generate room secret, or enter the 16+ character secret shared by the host.');return;}
+ if(!MeetProtocol.roomCode(rc)){alert(mode==='create'?'Use Generate a new room code (16+ letters and digits).':'Enter the 16+ character room code the host shared (lowercase letters and digits).');return;}
+ if(pw&&!window.crypto?.subtle){$('jerr').textContent='Passwords need a secure page (https). Open the site from its https address.';return}
+ if(mode==='create'&&pw&&pw.length<8){$('jerr').textContent='Use a password of at least 8 characters, or leave it empty for an open room.';return}
+ pwKey=null;guestPw=null;guestAuthed=true;authFails=[];
+ try{if(pw){const k=await deriveKey(pw,rc);if(mode==='create')pwKey=k;else{guestPw=k;guestAuthed=false}}}catch(e){$('jerr').textContent='Could not use that password.';return}
+ $('pw').value='';
  room=rc;me={id:'pending',name,speak:$('speak').value,hear:$('hear').value};session++;
  $('join').classList.add('hide');$('meet').classList.remove('hide');$('rname').textContent=rc;
  $('speak2').value=me.speak;$('hear2').value=me.hear;status('connecting...');updateVoiceNote();
  const hostId='linguameet-'+rc+'-host';
- peer=new Peer(hostId);
- peer.on('open',id=>{me.id=id;people.set(me.id,me);renderPeers();isHost=true;status('You host this room. Anyone with the secret can join. Not authenticated identities.');});
- peer.on('connection',c=>wire(c));
- peer.on('error',e=>{
-  if(e.type==='unavailable-id'){
-   peer.destroy();peer=new Peer();peer.on('open',id=>{me.id=id;people.set(id,me);renderPeers();status('Connected. Names are not verified identities.');wire(peer.connect(hostId,{reliable:true}));});
-   peer.on('error',e2=>status('Connection error: '+e2.type));
-  }else status('Connection error: '+e.type);
- });
+ if(mode==='create'){
+  peer=new Peer(hostId);
+  peer.on('open',id=>{me.id=id;people.set(me.id,me);renderPeers();isHost=true;status(pwKey?'You host this room. Password protected: guests need the code and the password. Not authenticated identities.':'You host this room (open, no password). Anyone with the code can join.');});
+  peer.on('connection',c=>wire(c));
+  peer.on('error',e=>{if(e.type==='unavailable-id')backToJoin('That room code is already in use. Generate a new one.');else status('Connection error: '+e.type)});
+ }else{
+  peer=new Peer();
+  peer.on('open',id=>{me.id=id;people.set(id,me);renderPeers();status('Connecting to the room...');wire(peer.connect(hostId,{reliable:true}));});
+  peer.on('error',e=>{if(e.type==='peer-unavailable')backToJoin('No room found for that code. Check it, or ask the host to create the room first.');else status('Connection error: '+e.type)});
+ }
 };
 $('speak2').onchange=()=>{me.speak=$('speak2').value;announce();if(recOn){stopRec();startRec()}};
 $('hear2').onchange=()=>{me.hear=$('hear2').value;announce();updateVoiceNote()};
 function announce(){people.set(me.id,me);renderPeers();isHost?broadcastLocal({t:'people',list:[...people.values()]}):send({t:'update',...me})}
-$('send').onclick=()=>{say($('txt').value);$('txt').value=''};
+$('send').onclick=()=>{say($('txt').value,'typed');$('txt').value=''};
 $('txt').onkeydown=e=>{if(e.key=='Enter'){$('send').click()}};
 $('mute').onclick=()=>{muted=!muted;if(muted&&window.speechSynthesis)speechSynthesis.cancel();$('mute').textContent='Mute playback: '+(muted?'on':'off')};
 function startRec(){if(deaf){status('Deafened: undeafen to use the microphone.');return}const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('Speech recognition not supported in this browser. Use Chrome/Edge or type.');return}
   rec=new SR();rec.lang=bcp(me.speak);rec.continuous=true;rec.interimResults=false;
-  rec.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)say(e.results[i][0].transcript)};
+  rec.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)say(e.results[i][0].transcript,'speech')};
   rec.onend=()=>{recOn=false;$('mic').textContent='Start mic';$('mic').classList.remove('on');renderPeers();};rec.onerror=e=>{recOn=false;status('mic: '+e.error);};
   try{rec.start();recOn=true;$('mic').textContent='Stop mic';$('mic').classList.add('on');renderPeers();}catch(e){recOn=false;status('Microphone could not start.');}}
 function stopRec(){recOn=false;try{deaf?rec.abort():rec.stop()}catch(e){}$('mic').textContent='Start mic';$('mic').classList.remove('on');renderPeers()}
